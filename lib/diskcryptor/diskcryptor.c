@@ -80,18 +80,14 @@ int DISKCRYPTOR_init_hdr(struct crypt_device *cd,
 	char *key;
         int r;
 	struct crypt_cipher *cipher;
-
-
-	char iv[16] = {};
         char buf[512] = {};
-
-                iv[0] = 1;
+	char iv[16] = {1};
 
                 if (posix_memalign((void*)&key, crypt_getpagesize(), 512))
                         return -ENOMEM;
 
                 char *utf16Password = NULL;
-		r = passphrase_to_utf16(cd, params->passphrase, params->passphrase_size, &utf16Password);
+                r = passphrase_to_utf16(cd, params->passphrase, params->passphrase_size, &utf16Password);
 
                 r = crypt_pbkdf("pbkdf2", "sha512",
                                 utf16Password, params->passphrase_size * 2,
@@ -99,7 +95,6 @@ int DISKCRYPTOR_init_hdr(struct crypt_device *cd,
                                 key, DISKCRYPTOR_HDR_KEY_LEN,
                                 1000, 0, 0);
 
-                //hexprint(cd, key, DISKCRYPTOR_HDR_KEY_LEN, " ");
                 char new_key[64];
                 memcpy(new_key, &key[32], 32);
                 memcpy(&new_key[32], key, 32);
@@ -117,12 +112,7 @@ int DISKCRYPTOR_init_hdr(struct crypt_device *cd,
                 }
                 //log_std(cd, "r=%d\n", r);
 
-                if (!strncmp(&hdr[64], "DCRP", 4)) {
-                        log_std(cd, "DONE\n");
-                        return 0;
-                }
-
-                if (!strncmp(&hdr[64], "PRCD", 4)) {
+                if (!strncmp(hdr->e, "DCRP", 4)) {
                         log_std(cd, "DONE\n");
                         return 0;
                 }

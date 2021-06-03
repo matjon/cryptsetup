@@ -100,14 +100,10 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
                         key, DISKCRYPTOR_HDR_KEY_LEN,
                         1000, 0, 0);
 
-        char new_key[64];
-        memcpy(new_key, &key[32], 32);
-        memcpy(&new_key[32], key, 32);
-
         // TODO: czy na pewno xts-plain64, czy też raczej xts-plain
         r = crypt_cipher_init(&cipher, "aes", "xts", key, 64);
-        //log_std(cd, "r=%d\n", r);
 
+        // https://gitlab.com/cryptsetup/cryptsetup/-/wikis/TrueCryptOnDiskFormat :
         // Initial vector uses plain 64bit sector number starting with 0 (in Linux dmcrypt notation it is "plain64" IV).
         if (!r) {
                 r = crypt_cipher_decrypt(cipher, (const char *)enchdr, (char *)hdr, 2048,

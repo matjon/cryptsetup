@@ -73,29 +73,6 @@ static void hexprint(struct crypt_device *cd, const char *d, int n, const char *
 		log_std(cd, "%02hhx%s", (const char)d[i], sep);
 }
 
-int DISKCRYPTOR_test(struct crypt_device *cd)
-{
-	char *key;
-        int r;
-
-        char salt[64] = {};
-        char *utf16Password = NULL;
-
-        if (posix_memalign((void*)&key, crypt_getpagesize(), 512))
-                return -ENOMEM;
-
-        r = passphrase_to_utf16(cd, "hashcat", strlen("hashcat"), &utf16Password);
-
-        r = crypt_pbkdf("pbkdf2", "sha512",
-                        utf16Password, strlen("hashcat") * 2,
-                        salt, DISKCRYPTOR_HDR_SALT_LEN,
-                        key, DISKCRYPTOR_HDR_KEY_LEN,
-                        1000, 0, 0);
-
-
-        hexprint(cd, key, 16, " ");
-}
-
 int DISKCRYPTOR_init_hdr(struct crypt_device *cd,
 			   struct diskcryptor_phdr *hdr,
 			   struct crypt_params_diskcryptor *params)
@@ -108,9 +85,6 @@ int DISKCRYPTOR_init_hdr(struct crypt_device *cd,
 	char iv[16] = {};
         char buf[512] = {};
 
-        //DISKCRYPTOR_test(cd);
-
-        //for (int i = 0; i < 6553; i++) {
                 iv[0] = 1;
 
                 if (posix_memalign((void*)&key, crypt_getpagesize(), 512))
@@ -152,7 +126,6 @@ int DISKCRYPTOR_init_hdr(struct crypt_device *cd,
                         log_std(cd, "DONE\n");
                         return 0;
                 }
-        //}
 
         return r;
 }

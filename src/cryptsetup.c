@@ -478,6 +478,73 @@ out:
 	return r;
 }
 
+static int diskcryptor_load(struct crypt_device *cd, struct crypt_params_diskcryptor *params)
+{
+	int r, tries, eperm = 0;
+
+	tries = _set_tries_tty();
+	do {
+		r = tools_get_key(NULL, CONST_CAST(char**)&params->passphrase,
+				  &params->passphrase_size, 0, 0, keyfile_stdin, ARG_UINT32(OPT_TIMEOUT_ID),
+				 _verify_passphrase(0), 0, cd);
+		if (r < 0)
+			continue;
+
+		r = crypt_load(cd, CRYPT_DISKCRYPTOR, params);
+
+		if (r == -EPERM) {
+			log_err(_("No device header detected with this passphrase."));
+			eperm = 1;
+		}
+
+		if (r < 0) {
+			crypt_safe_free(CONST_CAST(char*)params->passphrase);
+			params->passphrase = NULL;
+			params->passphrase_size = 0;
+		}
+		check_signal(&r);
+	} while ((r == -EPERM || r == -ERANGE) && (--tries > 0));
+
+	/* Report wrong passphrase if at least one try failed */
+	if (eperm && r == -EPIPE)
+		r = -EPERM;
+
+	return r;
+}
+
+static int action_open_diskcryptor(void)
+{
+	struct crypt_device *cd = NULL;
+	struct crypt_params_diskcryptor params = {
+		.keyfiles = NULL,
+		.keyfiles_count = 0,
+		.flags = 0,
+		.cipher = ARG_STR(OPT_CIPHER_ID),
+	};
+	const char *activated_name;
+	uint32_t activate_flags = 0;
+	int r;
+
+	activated_name = ARG_SET(OPT_TEST_PASSPHRASE_ID) ? NULL : action_argv[1];
+
+	r = crypt_init_data_device(&cd, ARG_STR(OPT_HEADER_ID) ?: action_argv[0], action_argv[0]);
+	if (r < 0)
+		goto out;
+
+	r = diskcryptor_load(cd, &params);
+	if (r < 0)
+		goto out;
+
+	_set_activation_flags(&activate_flags);
+
+	if (activated_name)
+		r = crypt_activate_by_volume_key(cd, activated_name, NULL, 0, activate_flags);
+out:
+	crypt_free(cd);
+	crypt_safe_free(CONST_CAST(char*)params.passphrase);
+	return r;
+}
+
 static int action_open_bitlk(void)
 {
 	struct crypt_device *cd = NULL;
@@ -2399,6 +2466,10 @@ static int action_open(void)
 		if (action_argc < 2 && !ARG_SET(OPT_TEST_PASSPHRASE_ID))
 			goto out;
 		return action_open_tcrypt();
+	} else if (!strcmp(device_type, "diskcryptor")) {
+		if (action_argc < 2 && !ARG_SET(OPT_TEST_PASSPHRASE_ID))
+			goto out;
+		return action_open_diskcryptor();
 	} else if (!strcmp(device_type, "bitlk")) {
 		if (action_argc < 2 && !ARG_SET(OPT_TEST_PASSPHRASE_ID))
 			goto out;

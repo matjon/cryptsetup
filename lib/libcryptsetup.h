@@ -421,6 +421,8 @@ int crypt_get_metadata_size(struct crypt_device *cd,
 #define CRYPT_VERITY "VERITY"
 /** TCRYPT (TrueCrypt-compatible and VeraCrypt-compatible) mode */
 #define CRYPT_TCRYPT "TCRYPT"
+/** DiskCryptor */
+#define CRYPT_DISKCRYPTOR "DISKCRYPTOR"
 /** INTEGRITY dm-integrity device */
 #define CRYPT_INTEGRITY "INTEGRITY"
 /** BITLK (BitLocker-compatible mode) */
@@ -552,6 +554,23 @@ struct crypt_params_tcrypt {
  *  VeraCrypt device is reported as TCRYPT type.
  */
 #define CRYPT_TCRYPT_VERA_MODES      (1 << 4)
+
+/**
+ *
+ * Structure used as parameter for DiskCryptor device type.
+ *
+ * @see crypt_load
+ *
+ */
+struct crypt_params_diskcryptor {
+	const char *passphrase;    /**< passphrase to unlock header (input only) */
+	size_t passphrase_size;    /**< passphrase size (input only) */
+	const char **keyfiles;     /**< NOT IMPLEMENTED YET */
+	unsigned int keyfiles_count;/**< NOT IMPLEMENTED YET */
+	const char *cipher;        /**< cipher chain c1[-c2[-c3]] */
+	size_t key_size;           /**< key size in bytes (the whole chain) */
+	uint32_t flags;            /**< CRYPT_DISKCRYPTOR* flags */
+};
 
 /**
  *

@@ -107,13 +107,13 @@ int DISKCRYPTOR_init_hdr(struct crypt_device *cd,
         if (!r) {
                 r = crypt_cipher_decrypt(cipher, hdr, hdr, 2048,
                                         iv, 16);
-                //hexprint(cd, hdr->e, 16, " ");
                 crypt_cipher_destroy(cipher);
         }
         //log_std(cd, "r=%d\n", r);
 
         if (!strncmp(hdr->e, "DCRP", 4)) {
                 log_std(cd, "DONE\n");
+                hexprint(cd, hdr->e, 2048, " ");
                 return 0;
         }
 

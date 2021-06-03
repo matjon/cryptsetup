@@ -73,7 +73,8 @@ static void hexprint(struct crypt_device *cd, const char *d, int n, const char *
 		log_std(cd, "%02hhx%s", (const char)d[i], sep);
 }
 
-int DISKCRYPTOR_init_hdr(struct crypt_device *cd,
+int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
+			   struct diskcryptor_enchdr *enchdr,
 			   struct diskcryptor_phdr *hdr,
 			   struct crypt_params_diskcryptor *params)
 {
@@ -87,11 +88,11 @@ int DISKCRYPTOR_init_hdr(struct crypt_device *cd,
                 return -ENOMEM;
 
         char *utf16Password = NULL;
-        r = passphrase_to_utf16(cd, params->passphrase, params->passphrase_size, &utf16Password);
+        r = passphrase_to_utf16(cd, CONST_CAST(char *) params->passphrase, params->passphrase_size, &utf16Password);
 
         r = crypt_pbkdf("pbkdf2", "sha512",
                         utf16Password, params->passphrase_size * 2,
-                        hdr->salt, DISKCRYPTOR_HDR_SALT_LEN,
+                        enchdr->salt, DISKCRYPTOR_HDR_SALT_LEN,
                         key, DISKCRYPTOR_HDR_KEY_LEN,
                         1000, 0, 0);
 
@@ -105,15 +106,15 @@ int DISKCRYPTOR_init_hdr(struct crypt_device *cd,
 
         // Initial vector uses plain 64bit sector number starting with 0 (in Linux dmcrypt notation it is "plain64" IV).
         if (!r) {
-                r = crypt_cipher_decrypt(cipher, hdr, hdr, 2048,
+                r = crypt_cipher_decrypt(cipher, (const char *)enchdr, (char *)hdr, 2048,
                                         iv, 16);
                 crypt_cipher_destroy(cipher);
         }
         //log_std(cd, "r=%d\n", r);
 
-        if (!strncmp(hdr->e, "DCRP", 4)) {
+        if (!strncmp(hdr->signature, "DCRP", 4)) {
                 log_std(cd, "DONE\n");
-                hexprint(cd, hdr->e, 2048, " ");
+                //hexprint(cd, hdr->e, 2048, " ");
                 return 0;
         }
 
@@ -127,7 +128,7 @@ int DISKCRYPTOR_read_phdr(struct crypt_device *cd,
         int r = 0;
         int devfd;
 	struct device *device = crypt_data_device(cd);
-
+        struct diskcryptor_enchdr *enchdr;
 
         devfd = device_open(cd, device, O_RDONLY);
 	if (devfd < 0) {
@@ -136,12 +137,17 @@ int DISKCRYPTOR_read_phdr(struct crypt_device *cd,
 		return -EINVAL;
 	}
 
+        enchdr = malloc(sizeof(struct diskcryptor_enchdr));
+        // TODO: if (enchdr == NULL)
+
 	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
-			device_alignment(device), hdr, DISKCRYPTOR_HDR_WHOLE_LEN, 0) == DISKCRYPTOR_HDR_WHOLE_LEN) {
-		r = DISKCRYPTOR_init_hdr(cd, hdr, params);
+			device_alignment(device), enchdr, DISKCRYPTOR_HDR_WHOLE_LEN, 0) == DISKCRYPTOR_HDR_WHOLE_LEN) {
+		r = DISKCRYPTOR_decrypt_hdr(cd, enchdr, hdr, params);
         }
 
 	if (r < 0)
 		memset(hdr, 0, sizeof (*hdr));
+
+        free(enchdr);
 	return r;
 }

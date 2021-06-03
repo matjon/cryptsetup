@@ -19,6 +19,7 @@
  */
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,6 +67,38 @@ static int passphrase_to_utf16(struct crypt_device *cd, char *input, size_t inle
 	return r;
 }
 
+static void hexdump_buffer(FILE *stream, const unsigned char *buffer,
+                size_t buffer_size, const int bytes_per_line)
+{
+	// TODO: make the function more readable
+	// TODO: replace fprintf with something faster, like sprintf
+	for (size_t i = 0; i < buffer_size; i+=bytes_per_line) {
+		fprintf(stream, "%08x  ", (unsigned int) i);
+
+		for (size_t j = i; j < i + bytes_per_line && j < buffer_size; j++) {
+			fprintf(stream, "%02x ", (unsigned int) buffer[j]);
+		}
+		// last line padding
+		for (size_t j = buffer_size; j < i + bytes_per_line; j++) {
+			fputs("   ", stream);
+		}
+
+		fprintf(stream, " |");
+		for (size_t j = i; j < i+bytes_per_line && j < buffer_size; j++) {
+			if (isprint(buffer[j])) {
+				fputc(buffer[j], stream);
+			} else {
+				fputc('.', stream);
+			}
+		}
+		// last line padding
+		for (size_t j = buffer_size; j < i+bytes_per_line; j++) {
+			fputs(" ", stream);
+		}
+		fprintf(stream, "|\n");
+	}
+}
+
 
 static void hexprint(struct crypt_device *cd, const char *d, int n, const char *sep)
 {
@@ -82,7 +115,6 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 	char *key;
         int r;
 	struct crypt_cipher *cipher;
-        char buf[512] = {};
 	char iv[16] = {1};
 
 	assert(sizeof(struct diskcryptor_enchdr) == DISKCRYPTOR_HDR_WHOLE_LEN);
@@ -103,17 +135,28 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
         // TODO: czy na pewno xts-plain64, czy też raczej xts-plain
         r = crypt_cipher_init(&cipher, "aes", "xts", key, 64);
         if (!r) {
-                r = crypt_cipher_decrypt(cipher, (const char *)enchdr, (char *)hdr, 2048,
-                                        iv, 16);
+                // TODO: co w wypadku sektorów 4k / większych niż 512 bajtów?
+                for (int i = 0; i < DISKCRYPTOR_HDR_WHOLE_LEN / 512; i++) {
+                        iv[0] = i+1;
+                        r = crypt_cipher_decrypt(cipher,
+                                (const char *)enchdr + i * 512,
+                                (char *)hdr + i * 512,
+                                512,
+                                iv, 16);
+
+                        // TODO: sprawdzać wartość r,
+                }
                 crypt_cipher_destroy(cipher);
         }
-        //log_std(cd, "r=%d\n", r);
 
         if (!strncmp(hdr->signature, "DCRP", 4)) {
                 log_std(cd, "DONE\n");
-                //hexprint(cd, hdr->e, 2048, " ");
+                // hexprint(cd, hdr, 2048, " ");
+
+                hexdump_buffer(stderr, hdr, 2048, 16);
                 return 0;
         }
+        // TODO: little-endian vs big-endian
 
         return r;
 }

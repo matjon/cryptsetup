@@ -23,17 +23,15 @@
 
 #define DISKCRYPTOR_HDR_SALT_LEN 64
 #define DISKCRYPTOR_HDR_WHOLE_LEN    2048
-#define DISKCRYPTOR_HDR_LEN    (DISKCRYPTOR_HDR_WHOLE_LEN - DISKCRYPTOR_HDR_SALT_LEN)
-
-// guesswork
-#define DISKCRYPTOR_HDR_KEY_LEN 64
+#define DISKCRYPTOR_HDR_ENC_LEN    (DISKCRYPTOR_HDR_WHOLE_LEN - DISKCRYPTOR_HDR_SALT_LEN)
 
 struct diskcryptor_phdr {
 	char salt[DISKCRYPTOR_HDR_SALT_LEN];
-
-	char e[DISKCRYPTOR_HDR_LEN];
+	char encrypted[DISKCRYPTOR_HDR_LEN];
 } __attribute__((__packed__));
 
+
+#define DISKCRYPTOR_HDR_KEY_LEN 64
 
 struct crypt_device;
 struct crypt_params_diskcryptor;

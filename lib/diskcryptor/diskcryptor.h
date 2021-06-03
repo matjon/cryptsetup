@@ -35,7 +35,22 @@ struct diskcryptor_enchdr {
 struct diskcryptor_phdr {
 	char _trash[DISKCRYPTOR_HDR_SALT_LEN];
 	char signature[4];
-        char padding[DISKCRYPTOR_HDR_WHOLE_LEN - DISKCRYPTOR_HDR_SALT_LEN - 4];
+        uint32_t crc32;
+        uint16_t header_version;
+        uint32_t flags;
+        uint32_t uuid;
+
+        uint32_t alg;
+        char key[256];
+        uint32_t previous_alg;
+        char previous_key[256];
+
+        uint64_t relocation_offset;
+        uint64_t data_size;
+        uint64_t encrypted_size;
+        uint8_t wipe_mode;
+
+        char padding[1421];
 } __attribute__((__packed__));
 
 

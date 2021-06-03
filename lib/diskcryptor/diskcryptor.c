@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,6 +84,9 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 	struct crypt_cipher *cipher;
         char buf[512] = {};
 	char iv[16] = {1};
+
+	assert(sizeof(struct diskcryptor_enchdr) == DISKCRYPTOR_HDR_WHOLE_LEN);
+	assert(sizeof(struct diskcryptor_phdr) == DISKCRYPTOR_HDR_WHOLE_LEN);
 
         if (posix_memalign((void*)&key, crypt_getpagesize(), 512))
                 return -ENOMEM;

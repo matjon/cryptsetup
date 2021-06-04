@@ -22,6 +22,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -107,6 +108,29 @@ static void hexprint(struct crypt_device *cd, const char *d, int n, const char *
 		log_std(cd, "%02hhx%s", (const char)d[i], sep);
 }
 
+/*
+ * Checks if the header signature and CRC32 matches, to determine
+ * if the password is correct. Does not validate other header fields.
+ */
+static bool DISKCRYPTOR_is_correctly_decrypted(struct crypt_device *cd,
+                struct diskcryptor_phdr *hdr)
+{
+        if (strncmp(hdr->signature, "DCRP", 4))
+                return false;
+
+        // DiskCryptor uses unmodified CRC-32
+        uint32_t header_crc = crypt_crc32(0xffffffff,
+                        (const unsigned char*)hdr + 72, 2048-72);
+        // crypt_crc32() does not perform the final XOR
+        header_crc ^= 0xffffffff;
+
+        // TODO: big-endian architectures?
+        if (header_crc != hdr->crc32)
+                return false;
+
+        return true;
+}
+
 int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 			   struct diskcryptor_enchdr *enchdr,
 			   struct diskcryptor_phdr *hdr,
@@ -149,22 +173,11 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
                 crypt_cipher_destroy(cipher);
         }
 
-        if (!strncmp(hdr->signature, "DCRP", 4)) {
+        if (DISKCRYPTOR_is_correctly_decrypted(cd, hdr)) {
                 log_std(cd, "DONE\n");
                 // hexprint(cd, hdr, 2048, " ");
 
                 hexdump_buffer(stderr, hdr, 2048, 16);
-
-                // algorytm CRC32 jest identyczny do tego z Wikipedii:
-                // https://en.wikipedia.org/wiki/Cyclic_redundancy_check#CRC-32_algorithm
-                uint32_t header_crc = crypt_crc32(0xffffffff, (const char*)hdr + 72, 2048-72);
-                // crypt_crc32() does not perform the final XOR
-                header_crc ^= 0xffffffff;
-                
-                // to trzeba będzie sprawdzać łącznie z weryfikacją sygnatury,
-                if (header_crc != hdr->crc32) {
-                        log_err(cd, "Incorrect header crc32\n");
-                }
 
                 return 0;
         }
@@ -195,7 +208,7 @@ int DISKCRYPTOR_decrypt_sector(struct crypt_device *cd,
 	}
 
 	if (!read_lseek_blockwise(devfd, device_block_size(cd, device),
-			device_alignment(device), sector, DISKCRYPTOR_HDR_WHOLE_LEN, sector_number * 512) 
+			device_alignment(device), sector, DISKCRYPTOR_HDR_WHOLE_LEN, sector_number * 512)
                         == 512) {
 
 		device_free(cd, device);

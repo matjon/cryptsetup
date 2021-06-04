@@ -154,6 +154,18 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
                 // hexprint(cd, hdr, 2048, " ");
 
                 hexdump_buffer(stderr, hdr, 2048, 16);
+
+                // algorytm CRC32 jest identyczny do tego z Wikipedii:
+                // https://en.wikipedia.org/wiki/Cyclic_redundancy_check#CRC-32_algorithm
+                uint32_t header_crc = crypt_crc32(0xffffffff, (const char*)hdr + 72, 2048-72);
+                // crypt_crc32() does not perform the final XOR
+                header_crc ^= 0xffffffff;
+                
+                // to trzeba będzie sprawdzać łącznie z weryfikacją sygnatury,
+                if (header_crc != hdr->crc32) {
+                        log_err(cd, "Incorrect header crc32\n");
+                }
+
                 return 0;
         }
         // TODO: little-endian vs big-endian
@@ -237,7 +249,7 @@ int DISKCRYPTOR_read_phdr(struct crypt_device *cd,
 			device_alignment(device), enchdr, DISKCRYPTOR_HDR_WHOLE_LEN, 0) == DISKCRYPTOR_HDR_WHOLE_LEN) {
 		r = DISKCRYPTOR_decrypt_hdr(cd, enchdr, hdr, params);
 
-                DISKCRYPTOR_decrypt_sector(cd, hdr, 16380);
+                //DISKCRYPTOR_decrypt_sector(cd, hdr, 16380);
         }
 
 	if (r < 0)

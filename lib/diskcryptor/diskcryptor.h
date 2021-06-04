@@ -30,6 +30,8 @@ struct diskcryptor_enchdr {
 	char encrypted[DISKCRYPTOR_HDR_ENC_LEN];
 } __attribute__((__packed__));
 
+// TODO: It is likely that the size is bigger if multiple ciphers are used together
+// (for example, aes+twofish)
 #define DISKCRYPTOR_HDR_KEY_LEN 64
 
 struct diskcryptor_phdr {

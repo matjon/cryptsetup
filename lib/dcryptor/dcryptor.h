@@ -30,7 +30,7 @@ struct dcryptor_enchdr {
 } __attribute__((__packed__));
 
 #define DCRYPTOR_KEY_LEN 64
-// Header provides space for keys for 4 chained ciphers
+// Header provides space for separate keys for 4 chained ciphers
 #define DCRYPTOR_MAX_KEYS 4
 #define DCRYPTOR_MAX_CHAINED_KEYS_LEN DCRYPTOR_HDR_KEY_LEN * DCRYPTOR_MAX_KEYS
 

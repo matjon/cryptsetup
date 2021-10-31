@@ -34,6 +34,10 @@ struct diskcryptor_enchdr {
 // (for example, aes+twofish)
 #define DISKCRYPTOR_HDR_KEY_LEN 64
 
+// https://diskcryptor.org/volume/ seems to provide space for 4 chained ciphers.
+// See: Main encryption key of user data on a volume.
+#define DISKCRYPTOR_HDR_MAX_KEY_LEN 4*DISKCRYPTOR_HDR_KEY_LEN
+
 struct diskcryptor_phdr {
 	char _trash[DISKCRYPTOR_HDR_SALT_LEN];
 	char signature[4];

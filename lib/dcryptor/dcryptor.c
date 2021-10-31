@@ -139,14 +139,6 @@ static void hexdump_buffer(FILE *stream, const unsigned char *buffer,
 	}
 }
 
-
-static void hexprint(struct crypt_device *cd, const char *d, int n, const char *sep)
-{
-	int i;
-	for(i = 0; i < n; i++)
-		log_std(cd, "%02hhx%s", (const char)d[i], sep);
-}
-
 /*
  * Checks if the header signature and CRC32 matches, to determine
  * if the password is correct. Does not validate other header fields.
@@ -343,6 +335,8 @@ int DCRYPTOR_decrypt_hdr(struct crypt_device *cd,
         return r;
 }
 
+/*
+
 int DCRYPTOR_decrypt_sector(struct crypt_device *cd,
                 struct dcryptor_phdr *hdr,
                 uint64_t sector_number)
@@ -393,6 +387,7 @@ int DCRYPTOR_decrypt_sector(struct crypt_device *cd,
 
         return 0;
 }
+*/
 
 int DCRYPTOR_read_phdr(struct crypt_device *cd,
 		     struct dcryptor_phdr *hdr,

@@ -34,7 +34,7 @@
 #include "loopaes/loopaes.h"
 #include "verity/verity.h"
 #include "tcrypt/tcrypt.h"
-#include "diskcryptor/diskcryptor.h"
+#include "dcryptor/dcryptor.h"
 #include "integrity/integrity.h"
 #include "bitlk/bitlk.h"
 #include "utils_device_locking.h"

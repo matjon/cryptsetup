@@ -78,8 +78,8 @@ libcryptsetup_la_SOURCES = \
 	lib/loopaes/loopaes.c		\
 	lib/tcrypt/tcrypt.h		\
 	lib/tcrypt/tcrypt.c		\
-	lib/diskcryptor/diskcryptor.h	\
-	lib/diskcryptor/diskcryptor.c	\
+	lib/dcryptor/dcryptor.h	        \
+	lib/dcryptor/dcryptor.c	        \
 	lib/luks1/af.h			\
 	lib/luks1/af.c			\
 	lib/luks1/keyencryption.c	\

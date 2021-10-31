@@ -478,7 +478,7 @@ out:
 	return r;
 }
 
-static int diskcryptor_load(struct crypt_device *cd, struct crypt_params_diskcryptor *params)
+static int dcryptor_load(struct crypt_device *cd, struct crypt_params_dcryptor *params)
 {
 	int r, tries, eperm = 0;
 
@@ -490,7 +490,7 @@ static int diskcryptor_load(struct crypt_device *cd, struct crypt_params_diskcry
 		if (r < 0)
 			continue;
 
-		r = crypt_load(cd, CRYPT_DISKCRYPTOR, params);
+		r = crypt_load(cd, CRYPT_DCRYPTOR, params);
 
 		if (r == -EPERM) {
 			log_err(_("No device header detected with this passphrase."));
@@ -512,10 +512,10 @@ static int diskcryptor_load(struct crypt_device *cd, struct crypt_params_diskcry
 	return r;
 }
 
-static int action_open_diskcryptor(void)
+static int action_open_dcryptor(void)
 {
 	struct crypt_device *cd = NULL;
-	struct crypt_params_diskcryptor params = {
+	struct crypt_params_dcryptor params = {
 		.keyfiles = NULL,
 		.keyfiles_count = 0,
 		.flags = 0,
@@ -531,7 +531,7 @@ static int action_open_diskcryptor(void)
 	if (r < 0)
 		goto out;
 
-	r = diskcryptor_load(cd, &params);
+	r = dcryptor_load(cd, &params);
 	if (r < 0)
 		goto out;
 
@@ -2466,10 +2466,10 @@ static int action_open(void)
 		if (action_argc < 2 && !ARG_SET(OPT_TEST_PASSPHRASE_ID))
 			goto out;
 		return action_open_tcrypt();
-	} else if (!strcmp(device_type, "diskcryptor")) {
+	} else if (!strcmp(device_type, "dcryptor")) {
 		if (action_argc < 2 && !ARG_SET(OPT_TEST_PASSPHRASE_ID))
 			goto out;
-		return action_open_diskcryptor();
+		return action_open_dcryptor();
 	} else if (!strcmp(device_type, "bitlk")) {
 		if (action_argc < 2 && !ARG_SET(OPT_TEST_PASSPHRASE_ID))
 			goto out;

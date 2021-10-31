@@ -18,28 +18,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef _CRYPTSETUP_DISKCRYPTOR_H
-#define _CRYPTSETUP_DISKCRYPTOR_H
+#ifndef _CRYPTSETUP_DCRYPTOR_H
+#define _CRYPTSETUP_DCRYPTOR_H
 
-#define DISKCRYPTOR_HDR_SALT_LEN 64
-#define DISKCRYPTOR_HDR_LEN    2048
-#define DISKCRYPTOR_HDR_ENC_LEN    (DISKCRYPTOR_HDR_LEN - DISKCRYPTOR_HDR_SALT_LEN)
+#define DCRYPTOR_HDR_SALT_LEN 64
+#define DCRYPTOR_HDR_LEN    2048
+#define DCRYPTOR_HDR_ENC_LEN    (DCRYPTOR_HDR_LEN - DCRYPTOR_HDR_SALT_LEN)
 
-struct diskcryptor_enchdr {
-	char salt[DISKCRYPTOR_HDR_SALT_LEN];
-	char encrypted[DISKCRYPTOR_HDR_ENC_LEN];
+struct dcryptor_enchdr {
+	char salt[DCRYPTOR_HDR_SALT_LEN];
+	char encrypted[DCRYPTOR_HDR_ENC_LEN];
 } __attribute__((__packed__));
 
 // TODO: It is likely that the size is bigger if multiple ciphers are used together
 // (for example, aes+twofish)
-#define DISKCRYPTOR_HDR_KEY_LEN 64
+#define DCRYPTOR_HDR_KEY_LEN 64
 
 // https://diskcryptor.org/volume/ seems to provide space for 4 chained ciphers.
 // See: Main encryption key of user data on a volume.
-#define DISKCRYPTOR_HDR_MAX_KEY_LEN 4*DISKCRYPTOR_HDR_KEY_LEN
+#define DCRYPTOR_HDR_MAX_KEY_LEN 4*DCRYPTOR_HDR_KEY_LEN
 
-struct diskcryptor_phdr {
-	char _trash[DISKCRYPTOR_HDR_SALT_LEN];
+struct dcryptor_phdr {
+	char _trash[DCRYPTOR_HDR_SALT_LEN];
 	char signature[4];
         uint32_t crc32;
         uint16_t header_version;
@@ -61,10 +61,10 @@ struct diskcryptor_phdr {
 
 
 struct crypt_device;
-struct crypt_params_diskcryptor;
+struct crypt_params_dcryptor;
 
-int DISKCRYPTOR_read_phdr(struct crypt_device *cd,
-		     struct diskcryptor_phdr *hdr,
-		     struct crypt_params_diskcryptor *params);
+int DCRYPTOR_read_phdr(struct crypt_device *cd,
+		     struct dcryptor_phdr *hdr,
+		     struct crypt_params_dcryptor *params);
 
 #endif

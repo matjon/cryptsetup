@@ -144,7 +144,7 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 	assert(sizeof(struct diskcryptor_enchdr) == DISKCRYPTOR_HDR_WHOLE_LEN);
 	assert(sizeof(struct diskcryptor_phdr) == DISKCRYPTOR_HDR_WHOLE_LEN);
 
-        if (posix_memalign((void*)&key, crypt_getpagesize(), 512))
+        if (posix_memalign((void*)&key, crypt_getpagesize(), DISKCRYPTOR_HDR_MAX_KEY_LEN))
                 return -ENOMEM;
 
         char *utf16Password = NULL;
@@ -153,8 +153,27 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
         r = crypt_pbkdf("pbkdf2", "sha512",
                         utf16Password, params->passphrase_size * 2,
                         enchdr->salt, DISKCRYPTOR_HDR_SALT_LEN,
-                        key, DISKCRYPTOR_HDR_KEY_LEN,
+                        key, DISKCRYPTOR_HDR_KEY_LEN * 2,
                         1000, 0, 0);
+
+        // TODO: czy na pewno xts-plain64, czy też raczej xts-plain
+        r = crypt_cipher_init(&cipher, "twofish", "xts", key+64, 64);
+        if (!r) {
+                // TODO: co w wypadku sektorów 4k / większych niż 512 bajtów?
+                for (int i = 0; i < DISKCRYPTOR_HDR_WHOLE_LEN / 512; i++) {
+                        iv[0] = i+1;
+                        r = crypt_cipher_decrypt(cipher,
+                                (const char *)enchdr + i * 512,
+                                (char *)hdr + i * 512,
+                                512,
+                                iv, 16);
+
+                        // TODO: sprawdzać wartość r,
+                }
+                crypt_cipher_destroy(cipher);
+        }
+
+        memcpy(enchdr, hdr, DISKCRYPTOR_HDR_WHOLE_LEN);
 
         // TODO: czy na pewno xts-plain64, czy też raczej xts-plain
         r = crypt_cipher_init(&cipher, "aes", "xts", key, 64);
@@ -182,6 +201,9 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
                 return 0;
         }
         // TODO: little-endian vs big-endian
+
+	if (key)
+		crypt_safe_memzero(key, DISKCRYPTOR_HDR_MAX_KEY_LEN);
 
 
 

@@ -180,7 +180,7 @@ int DCRYPTOR_decrypt_hdr_one_cipher(char *key,
         int r;
 	char iv[16] = {};
 
-        if (posix_memalign((void*)&key_one, crypt_getpagesize(), DCRYPTOR_HDR_KEY_LEN))
+        if (posix_memalign((void*)&key_one, crypt_getpagesize(), DCRYPTOR_KEY_LEN))
                 return -ENOMEM;
 
         memcpy(key_one, key + alg->key_offset, 32);
@@ -205,7 +205,7 @@ int DCRYPTOR_decrypt_hdr_one_cipher(char *key,
 
 exit:
 	if (key_one)
-		crypt_safe_memzero(key_one, DCRYPTOR_HDR_KEY_LEN);
+		crypt_safe_memzero(key_one, DCRYPTOR_KEY_LEN);
 
         free(key_one);
         return r;
@@ -268,13 +268,13 @@ int DCRYPTOR_decrypt_hdr_one_chain_length(
         int ret = 1;
         int i;
 
-        if (posix_memalign((void*)&key, crypt_getpagesize(), DCRYPTOR_HDR_KEY_LEN * chain_length))
+        if (posix_memalign((void*)&key, crypt_getpagesize(), DCRYPTOR_KEY_LEN * chain_length))
                 return -ENOMEM;
 
         r = crypt_pbkdf("pbkdf2", "sha512",
                         pwd_utf16, pwd_utf16_length,
-                        enchdr->salt, DCRYPTOR_HDR_SALT_LEN,
-                        key, DCRYPTOR_HDR_KEY_LEN * chain_length,
+                        enchdr->salt, DCRYPTOR_SALT_LEN,
+                        key, DCRYPTOR_KEY_LEN * chain_length,
                         1000, 0, 0);
 
         for (i = 0; dcryptor_cipher[i].chain_length; i++) {
@@ -298,7 +298,7 @@ int DCRYPTOR_decrypt_hdr_one_chain_length(
         }
 
 	if (key)
-		crypt_safe_memzero(key, DCRYPTOR_HDR_KEY_LEN * chain_length);
+		crypt_safe_memzero(key, DCRYPTOR_KEY_LEN * chain_length);
 
         free(key);
         return ret;

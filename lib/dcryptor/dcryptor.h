@@ -22,33 +22,30 @@
 #define _CRYPTSETUP_DCRYPTOR_H
 
 #define DCRYPTOR_HDR_LEN    2048
-#define DCRYPTOR_HDR_SALT_LEN 64
+#define DCRYPTOR_SALT_LEN 64
 
 struct dcryptor_enchdr {
-	char salt[DCRYPTOR_HDR_SALT_LEN];
-	char encrypted[DCRYPTOR_HDR_LEN - DCRYPTOR_HDR_SALT_LEN];
+	char salt[DCRYPTOR_SALT_LEN];
+	char encrypted[DCRYPTOR_HDR_LEN - DCRYPTOR_SALT_LEN];
 } __attribute__((__packed__));
 
-// TODO: It is likely that the size is bigger if multiple ciphers are used together
-// (for example, aes+twofish)
-#define DCRYPTOR_HDR_KEY_LEN 64
-
-// https://diskcryptor.org/volume/ seems to provide space for 4 chained ciphers.
-// See: Main encryption key of user data on a volume.
-#define DCRYPTOR_HDR_MAX_KEY_LEN 4*DCRYPTOR_HDR_KEY_LEN
+#define DCRYPTOR_KEY_LEN 64
+// Header provides space for keys for 4 chained ciphers
+#define DCRYPTOR_MAX_KEYS 4
+#define DCRYPTOR_MAX_CHAINED_KEYS_LEN DCRYPTOR_HDR_KEY_LEN * DCRYPTOR_MAX_KEYS
 
 struct dcryptor_phdr {
-	char _trash[DCRYPTOR_HDR_SALT_LEN];
+	char _trash[DCRYPTOR_SALT_LEN];
 	char signature[4];
         uint32_t crc32;
         uint16_t header_version;
         uint32_t flags;
         uint32_t uuid;
 
-        uint32_t alg;
-        char key[256];
-        uint32_t previous_alg;
-        char previous_key[256];
+        uint32_t alg_id;
+        char key[DCRYPTOR_MAX_KEYS][DCRYPTOR_KEY_LEN];
+        uint32_t previous_alg_id;
+        char previous_key[DCRYPTOR_MAX_KEYS][DCRYPTOR_KEY_LEN];
 
         uint64_t relocation_offset;
         uint64_t data_size;

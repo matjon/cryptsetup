@@ -240,47 +240,94 @@ exit:
         return r;
 }
 
+
+// Try all combinations that have a specific chain_length, calculating pbkdf2
+// once
+int DCRYPTOR_decrypt_hdr_one_chain_length(
+                struct crypt_device *cd,
+                struct diskcryptor_enchdr *enchdr,
+                struct diskcryptor_phdr *hdr,
+                char *pwd_utf16,
+                int pwd_utf16_length,
+                int chain_length,
+                int *found_combination)
+{
+	char *key;
+        int r;
+        int ret = 1;
+        int i;
+
+        if (posix_memalign((void*)&key, crypt_getpagesize(), DISKCRYPTOR_HDR_KEY_LEN * chain_length))
+                return -ENOMEM;
+
+        r = crypt_pbkdf("pbkdf2", "sha512",
+                        pwd_utf16, pwd_utf16_length,
+                        enchdr->salt, DISKCRYPTOR_HDR_SALT_LEN,
+                        key, DISKCRYPTOR_HDR_KEY_LEN * chain_length,
+                        1000, 0, 0);
+
+        for (i = 0; dcryptor_cipher[i].chain_length; i++) {
+                if (dcryptor_cipher[i].chain_length != chain_length)
+                        continue;
+
+                r = DCRYPTOR_decrypt_hdr_one_combination(key, enchdr, hdr,
+                        &dcryptor_cipher[i]);
+                if (r == 0) {
+                        // found!
+                        ret = 0;
+                        *found_combination = i;
+                        break;
+                }
+
+                if (r < 0) {
+                        // error!
+                        ret = r;
+                        break;
+                }
+        }
+
+	if (key)
+		crypt_safe_memzero(key, DISKCRYPTOR_HDR_KEY_LEN * chain_length);
+
+        free(key);
+        return ret;
+}
+
 int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 			   struct diskcryptor_enchdr *enchdr,
 			   struct diskcryptor_phdr *hdr,
 			   struct crypt_params_diskcryptor *params)
 {
-	char *key, *key_aes, *key_twofish;
         int r;
-	struct crypt_cipher *cipher;
-	char iv[16] = {};
+        int i;
+        int found_combination;
 
 	assert(sizeof(struct diskcryptor_enchdr) == DISKCRYPTOR_HDR_WHOLE_LEN);
 	assert(sizeof(struct diskcryptor_phdr) == DISKCRYPTOR_HDR_WHOLE_LEN);
 
-        if (posix_memalign((void*)&key, crypt_getpagesize(), DISKCRYPTOR_HDR_MAX_KEY_LEN))
-                return -ENOMEM;
-
         char *utf16Password = NULL;
         r = passphrase_to_utf16(cd, CONST_CAST(char *) params->passphrase, params->passphrase_size, &utf16Password);
+        // TODO: check r
 
-        r = crypt_pbkdf("pbkdf2", "sha512",
+        for (i = 1 ; i <= 3; i++) {
+                r = DCRYPTOR_decrypt_hdr_one_chain_length(cd, enchdr, hdr,
                         utf16Password, params->passphrase_size * 2,
-                        enchdr->salt, DISKCRYPTOR_HDR_SALT_LEN,
-                        key, DISKCRYPTOR_HDR_KEY_LEN * 2,
-                        1000, 0, 0);
+                        i,
+                        &found_combination);
 
-        if (DCRYPTOR_decrypt_hdr_one_combination(
-                        key, enchdr, hdr,
-                        &dcryptor_cipher[3]) == 0) {
+                if (r <= 0)
+                        break;
+        }
+        // TODO: if (r < 0) ...
+
+        if (r == 0) {
                 log_std(cd, "DONE\n");
                 // hexprint(cd, hdr, 2048, " ");
 
-                hexdump_buffer(stderr, hdr, 2048, 16);
-
-                return 0;
+                hexdump_buffer(stderr, (const unsigned char *)hdr, 2048, 16);
         }
+
         // TODO: little-endian vs big-endian
-
-	if (key)
-		crypt_safe_memzero(key, DISKCRYPTOR_HDR_MAX_KEY_LEN);
-
-        free(key);
 
         return r;
 }
@@ -304,9 +351,9 @@ int DISKCRYPTOR_decrypt_sector(struct crypt_device *cd,
 		return -EINVAL;
 	}
 
-	if (!read_lseek_blockwise(devfd, device_block_size(cd, device),
+	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
 			device_alignment(device), sector, DISKCRYPTOR_HDR_WHOLE_LEN, sector_number * 512)
-                        == 512) {
+                        != 512) {
 
 		device_free(cd, device);
 		log_err(cd, _("Cannot read device %s."), device_path(device));

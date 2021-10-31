@@ -178,12 +178,11 @@ int DCRYPTOR_decrypt_hdr_one_cipher(char *key,
         memcpy(key_one, key + alg->key_offset, 32);
         memcpy(key_one+32, key + alg->iv_offset, 32);
 
-        // TODO: czy na pewno xts-plain64, czy też raczej xts-plain
         r = crypt_cipher_init(&cipher, alg->name, "xts", key_one, 64);
         if (r)
                 goto exit;
 
-        // TODO: co w wypadku sektorów 4k / większych niż 512 bajtów?
+        // TODO: what about 4kB sectors?
         for (int i = 0; i < DCRYPTOR_HDR_LEN / 512; i++) {
                 iv[0] = i+1;
                 r = crypt_cipher_decrypt(cipher,
@@ -421,3 +420,5 @@ int DCRYPTOR_read_phdr(struct crypt_device *cd,
         free(enchdr);
 	return r;
 }
+
+// TODO: should I use xts-plain64, or possibly xts-plain?

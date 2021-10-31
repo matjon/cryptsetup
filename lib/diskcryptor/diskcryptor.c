@@ -85,14 +85,25 @@ struct dcryptor_algs {
 
 static struct dcryptor_algs dcryptor_cipher[] = {
         { 0x0, 1, "aes",
-                {{"aes", 0, 32}}},
+                {{"aes",      0, 32}}},
         { 0x1, 1, "twofish",
-                {{"twofish", 0, 32}}},
+                {{"twofish",  0, 32}}},
         { 0x2, 1, "serpent",
-                {{"serpent", 0, 32}}},
+                {{"serpent",  0, 32}}},
         { 0x3, 2, "aes-twofish",
-                {{"aes", 32, 32*3},
-                {"twofish", 0, 32*2}}},
+                {{"aes",     32, 32*3},
+                {"twofish",   0, 32*2}}},
+        { 0x4, 2, "twofish-serpent",
+                {{"twofish", 32, 32*3},
+                {"serpent",   0, 32*2}}},
+        { 0x5, 2, "serpent-aes",
+                {{"serpent", 32, 32*3},
+                {"aes",       0, 32*2}}},
+        { 0x6, 3, "aes-twofish-serpent", {
+                {"aes",    32*2, 32*5},
+                {"twofish",  32, 32*4},
+                {"serpent",   0, 32*3},
+                }},
         {}
 };
 

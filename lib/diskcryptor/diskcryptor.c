@@ -69,7 +69,7 @@ static int passphrase_to_utf16(struct crypt_device *cd, char *input, size_t inle
 }
 
 
-// Based on tcrypt.c
+// Inspired heavily by a similar list in tcrypt/tcrypt.c
 struct dcryptor_alg {
 		const char *name;
 		unsigned int key_offset;
@@ -77,20 +77,23 @@ struct dcryptor_alg {
 };
 
 struct dcryptor_algs {
-	unsigned int chain_count;
-        uint32_t alg_id;
+        uint32_t alg_id;       // as used in the volume header
+	unsigned int chain_length;
 	const char *long_name;
-	struct tcrypt_alg cipher[3];
+	struct dcryptor_alg cipher[3];
 };
 
 static struct dcryptor_algs dcryptor_cipher[] = {
-        { 1, 0x0, "aes",
-                {"aes", 0, 32}},
-        { 1, 0x1, "aes",
-                {"aes", 0, 32}}
-
-
-
+        { 0x0, 1, "aes",
+                {{"aes", 0, 32}}},
+        { 0x1, 1, "twofish",
+                {{"twofish", 0, 32}}},
+        { 0x2, 1, "serpent",
+                {{"serpent", 0, 32}}},
+        { 0x3, 2, "aes-twofish",
+                {{"aes", 32, 32*3},
+                {"twofish", 0, 32*2}}},
+        {}
 };
 
 static void hexdump_buffer(FILE *stream, const unsigned char *buffer,
@@ -137,8 +140,7 @@ static void hexprint(struct crypt_device *cd, const char *d, int n, const char *
  * Checks if the header signature and CRC32 matches, to determine
  * if the password is correct. Does not validate other header fields.
  */
-static bool DISKCRYPTOR_is_correctly_decrypted(struct crypt_device *cd,
-                struct diskcryptor_phdr *hdr)
+static bool DISKCRYPTOR_is_correctly_decrypted(struct diskcryptor_phdr *hdr)
 {
         if (strncmp(hdr->signature, "DCRP", 4))
                 return false;
@@ -156,6 +158,88 @@ static bool DISKCRYPTOR_is_correctly_decrypted(struct crypt_device *cd,
         return true;
 }
 
+
+int DCRYPTOR_decrypt_hdr_one_cipher(char *key,
+                struct diskcryptor_enchdr *dest,
+                struct diskcryptor_enchdr *source,
+                struct dcryptor_alg *alg)
+{
+	struct crypt_cipher *cipher;
+        char *key_one;
+        int r;
+	char iv[16] = {};
+
+        if (posix_memalign((void*)&key_one, crypt_getpagesize(), DISKCRYPTOR_HDR_KEY_LEN))
+                return -ENOMEM;
+
+        memcpy(key_one, key + alg->key_offset, 32);
+        memcpy(key_one+32, key + alg->iv_offset, 32);
+
+        // TODO: czy na pewno xts-plain64, czy też raczej xts-plain
+        r = crypt_cipher_init(&cipher, alg->name, "xts", key_one, 64);
+        if (r)
+                goto exit;
+
+        // TODO: co w wypadku sektorów 4k / większych niż 512 bajtów?
+        for (int i = 0; i < DISKCRYPTOR_HDR_WHOLE_LEN / 512; i++) {
+                iv[0] = i+1;
+                r = crypt_cipher_decrypt(cipher,
+                        (const char *)source + i * 512,
+                        (char *)dest + i * 512,
+                        512,
+                        iv, 16);
+
+        }
+        crypt_cipher_destroy(cipher);
+
+exit:
+	if (key_one)
+		crypt_safe_memzero(key_one, DISKCRYPTOR_HDR_KEY_LEN);
+
+        free(key_one);
+        return r;
+}
+
+int DCRYPTOR_decrypt_hdr_one_combination(char *key,
+                struct diskcryptor_enchdr *enchdr,
+                struct diskcryptor_phdr *hdr,
+                struct dcryptor_algs *algs)
+{
+        int i;
+        int r;
+        struct diskcryptor_enchdr *temp_hdr;
+
+        if (posix_memalign((void*)&temp_hdr, crypt_getpagesize(),
+                                DISKCRYPTOR_HDR_WHOLE_LEN)) {
+                return -ENOMEM;
+        }
+
+        memcpy(temp_hdr, enchdr, DISKCRYPTOR_HDR_WHOLE_LEN);
+
+        for (i = 0; i < algs->chain_length; i++) {
+                r = DCRYPTOR_decrypt_hdr_one_cipher(key,
+                                (struct diskcryptor_enchdr *) hdr,
+                                temp_hdr, &algs->cipher[i]);
+                if (r)
+                        goto exit;
+
+                memcpy(temp_hdr, hdr, DISKCRYPTOR_HDR_WHOLE_LEN);
+        }
+
+        if (DISKCRYPTOR_is_correctly_decrypted(hdr))
+                r = 0;
+        else
+                r = 1;
+
+exit:
+
+	if (temp_hdr)
+		crypt_safe_memzero(temp_hdr, DISKCRYPTOR_HDR_WHOLE_LEN);
+
+        free(temp_hdr);
+        return r;
+}
+
 int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 			   struct diskcryptor_enchdr *enchdr,
 			   struct diskcryptor_phdr *hdr,
@@ -171,10 +255,6 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 
         if (posix_memalign((void*)&key, crypt_getpagesize(), DISKCRYPTOR_HDR_MAX_KEY_LEN))
                 return -ENOMEM;
-        if (posix_memalign((void*)&key_twofish, crypt_getpagesize(), DISKCRYPTOR_HDR_MAX_KEY_LEN))
-                return -ENOMEM;
-        if (posix_memalign((void*)&key_aes, crypt_getpagesize(), DISKCRYPTOR_HDR_MAX_KEY_LEN))
-                return -ENOMEM;
 
         char *utf16Password = NULL;
         r = passphrase_to_utf16(cd, CONST_CAST(char *) params->passphrase, params->passphrase_size, &utf16Password);
@@ -185,49 +265,9 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
                         key, DISKCRYPTOR_HDR_KEY_LEN * 2,
                         1000, 0, 0);
 
-        memcpy(key_aes, key+32, 32);
-        memcpy(key_aes+32, key+32*3, 32);
-
-        memcpy(key_twofish, key, 32);
-        memcpy(key_twofish+32, key+32*2, 32);
-
-        // TODO: czy na pewno xts-plain64, czy też raczej xts-plain
-        r = crypt_cipher_init(&cipher, "aes", "xts", key_aes, 64);
-        if (!r) {
-                // TODO: co w wypadku sektorów 4k / większych niż 512 bajtów?
-                for (int i = 0; i < DISKCRYPTOR_HDR_WHOLE_LEN / 512; i++) {
-                        iv[0] = i+1;
-                        r = crypt_cipher_decrypt(cipher,
-                                (const char *)enchdr + i * 512,
-                                (char *)hdr + i * 512,
-                                512,
-                                iv, 16);
-
-                        // TODO: sprawdzać wartość r,
-                }
-                crypt_cipher_destroy(cipher);
-        }
-
-        memcpy(enchdr, hdr, DISKCRYPTOR_HDR_WHOLE_LEN);
-
-        // TODO: czy na pewno xts-plain64, czy też raczej xts-plain
-        r = crypt_cipher_init(&cipher, "twofish", "xts", key_twofish, 64);
-        if (!r) {
-                // TODO: co w wypadku sektorów 4k / większych niż 512 bajtów?
-                for (int i = 0; i < DISKCRYPTOR_HDR_WHOLE_LEN / 512; i++) {
-                        iv[0] = i+1;
-                        r = crypt_cipher_decrypt(cipher,
-                                (const char *)enchdr + i * 512,
-                                (char *)hdr + i * 512,
-                                512,
-                                iv, 16);
-
-                        // TODO: sprawdzać wartość r,
-                }
-                crypt_cipher_destroy(cipher);
-        }
-
-        if (DISKCRYPTOR_is_correctly_decrypted(cd, hdr)) {
+        if (DCRYPTOR_decrypt_hdr_one_combination(
+                        key, enchdr, hdr,
+                        &dcryptor_cipher[3]) == 0) {
                 log_std(cd, "DONE\n");
                 // hexprint(cd, hdr, 2048, " ");
 
@@ -240,7 +280,7 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 	if (key)
 		crypt_safe_memzero(key, DISKCRYPTOR_HDR_MAX_KEY_LEN);
 
-
+        free(key);
 
         return r;
 }

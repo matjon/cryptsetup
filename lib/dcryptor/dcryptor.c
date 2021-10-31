@@ -192,7 +192,7 @@ int DCRYPTOR_decrypt_hdr_one_cipher(char *key,
                 goto exit;
 
         // TODO: co w wypadku sektorów 4k / większych niż 512 bajtów?
-        for (int i = 0; i < DISKCRYPTOR_HDR_WHOLE_LEN / 512; i++) {
+        for (int i = 0; i < DISKCRYPTOR_HDR_LEN / 512; i++) {
                 iv[0] = i+1;
                 r = crypt_cipher_decrypt(cipher,
                         (const char *)source + i * 512,
@@ -221,11 +221,11 @@ int DCRYPTOR_decrypt_hdr_one_combination(char *key,
         struct diskcryptor_enchdr *temp_hdr;
 
         if (posix_memalign((void*)&temp_hdr, crypt_getpagesize(),
-                                DISKCRYPTOR_HDR_WHOLE_LEN)) {
+                                DISKCRYPTOR_HDR_LEN)) {
                 return -ENOMEM;
         }
 
-        memcpy(temp_hdr, enchdr, DISKCRYPTOR_HDR_WHOLE_LEN);
+        memcpy(temp_hdr, enchdr, DISKCRYPTOR_HDR_LEN);
 
         for (i = 0; i < algs->chain_length; i++) {
                 r = DCRYPTOR_decrypt_hdr_one_cipher(key,
@@ -234,7 +234,7 @@ int DCRYPTOR_decrypt_hdr_one_combination(char *key,
                 if (r)
                         goto exit;
 
-                memcpy(temp_hdr, hdr, DISKCRYPTOR_HDR_WHOLE_LEN);
+                memcpy(temp_hdr, hdr, DISKCRYPTOR_HDR_LEN);
         }
 
         if (DISKCRYPTOR_is_correctly_decrypted(hdr))
@@ -245,7 +245,7 @@ int DCRYPTOR_decrypt_hdr_one_combination(char *key,
 exit:
 
 	if (temp_hdr)
-		crypt_safe_memzero(temp_hdr, DISKCRYPTOR_HDR_WHOLE_LEN);
+		crypt_safe_memzero(temp_hdr, DISKCRYPTOR_HDR_LEN);
 
         free(temp_hdr);
         return r;
@@ -313,8 +313,8 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
         int i;
         int found_combination;
 
-	assert(sizeof(struct diskcryptor_enchdr) == DISKCRYPTOR_HDR_WHOLE_LEN);
-	assert(sizeof(struct diskcryptor_phdr) == DISKCRYPTOR_HDR_WHOLE_LEN);
+	assert(sizeof(struct diskcryptor_enchdr) == DISKCRYPTOR_HDR_LEN);
+	assert(sizeof(struct diskcryptor_phdr) == DISKCRYPTOR_HDR_LEN);
 
         char *utf16Password = NULL;
         r = passphrase_to_utf16(cd, CONST_CAST(char *) params->passphrase, params->passphrase_size, &utf16Password);
@@ -363,7 +363,7 @@ int DISKCRYPTOR_decrypt_sector(struct crypt_device *cd,
 	}
 
 	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
-			device_alignment(device), sector, DISKCRYPTOR_HDR_WHOLE_LEN, sector_number * 512)
+			device_alignment(device), sector, DISKCRYPTOR_HDR_LEN, sector_number * 512)
                         != 512) {
 
 		device_free(cd, device);
@@ -414,7 +414,7 @@ int DISKCRYPTOR_read_phdr(struct crypt_device *cd,
         // TODO: if (enchdr == NULL)
 
 	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
-			device_alignment(device), enchdr, DISKCRYPTOR_HDR_WHOLE_LEN, 0) == DISKCRYPTOR_HDR_WHOLE_LEN) {
+			device_alignment(device), enchdr, DISKCRYPTOR_HDR_LEN, 0) == DISKCRYPTOR_HDR_LEN) {
 		r = DISKCRYPTOR_decrypt_hdr(cd, enchdr, hdr, params);
 
                 //DISKCRYPTOR_decrypt_sector(cd, hdr, 16380);

@@ -69,7 +69,7 @@ static int passphrase_to_utf16(struct crypt_device *cd, char *input, size_t inle
 }
 
 
-// Inspired heavily by a similar list in tcrypt/tcrypt.c
+// These structures and list heavily by a similar list in tcrypt/tcrypt.c
 struct dcryptor_alg {
 		const char *name;
 		unsigned int key_offset;

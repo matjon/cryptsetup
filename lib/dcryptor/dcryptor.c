@@ -77,38 +77,38 @@ struct dcryptor_alg {
 };
 
 struct dcryptor_algs {
-        uint32_t alg_id;       // as used in the volume header
+	uint32_t alg_id;       // as used in the volume header
 	unsigned int chain_length;
 	const char *long_name;
 	struct dcryptor_alg cipher[3];
 };
 
 static struct dcryptor_algs dcryptor_cipher[] = {
-        { 0x0, 1, "aes",
-                {{"aes",      0, 32}}},
-        { 0x1, 1, "twofish",
-                {{"twofish",  0, 32}}},
-        { 0x2, 1, "serpent",
-                {{"serpent",  0, 32}}},
-        { 0x3, 2, "aes-twofish",
-                {{"aes",     32, 32*3},
-                {"twofish",   0, 32*2}}},
-        { 0x4, 2, "twofish-serpent",
-                {{"twofish", 32, 32*3},
-                {"serpent",   0, 32*2}}},
-        { 0x5, 2, "serpent-aes",
-                {{"serpent", 32, 32*3},
-                {"aes",       0, 32*2}}},
-        { 0x6, 3, "aes-twofish-serpent", {
-                {"aes",    32*2, 32*5},
-                {"twofish",  32, 32*4},
-                {"serpent",   0, 32*3},
-                }},
-        {}
+	{ 0x0, 1, "aes",
+		{{"aes",      0, 32}}},
+	{ 0x1, 1, "twofish",
+		{{"twofish",  0, 32}}},
+	{ 0x2, 1, "serpent",
+		{{"serpent",  0, 32}}},
+	{ 0x3, 2, "aes-twofish",
+		{{"aes",     32, 32*3},
+		{"twofish",   0, 32*2}}},
+	{ 0x4, 2, "twofish-serpent",
+		{{"twofish", 32, 32*3},
+		{"serpent",   0, 32*2}}},
+	{ 0x5, 2, "serpent-aes",
+		{{"serpent", 32, 32*3},
+		{"aes",       0, 32*2}}},
+	{ 0x6, 3, "aes-twofish-serpent", {
+		{"aes",    32*2, 32*5},
+		{"twofish",  32, 32*4},
+		{"serpent",   0, 32*3},
+		}},
+	{}
 };
 
 static void hexdump_buffer(FILE *stream, const unsigned char *buffer,
-                size_t buffer_size, const int bytes_per_line)
+		size_t buffer_size, const int bytes_per_line)
 {
 	// TODO: make the function more readable
 	// TODO: replace fprintf with something faster, like sprintf
@@ -145,154 +145,154 @@ static void hexdump_buffer(FILE *stream, const unsigned char *buffer,
  */
 static bool DCRYPTOR_is_correctly_decrypted(struct dcryptor_phdr *hdr)
 {
-        if (strncmp(hdr->signature, "DCRP", 4))
-                return false;
+	if (strncmp(hdr->signature, "DCRP", 4))
+		return false;
 
-        // DiskCryptor uses unmodified CRC-32
-        uint32_t header_crc = crypt_crc32(0xffffffff,
-                        (const unsigned char*)hdr + 72, 2048-72);
-        // crypt_crc32() does not perform the final XOR
-        header_crc ^= 0xffffffff;
+	// DiskCryptor uses unmodified CRC-32
+	uint32_t header_crc = crypt_crc32(0xffffffff,
+			(const unsigned char*)hdr + 72, 2048-72);
+	// crypt_crc32() does not perform the final XOR
+	header_crc ^= 0xffffffff;
 
-        // TODO: big-endian architectures?
-        if (header_crc != hdr->crc32)
-                return false;
+	// TODO: big-endian architectures?
+	if (header_crc != hdr->crc32)
+		return false;
 
-        return true;
+	return true;
 }
 
 
 int DCRYPTOR_decrypt_hdr_one_cipher(char *key,
-                struct dcryptor_enchdr *dest,
-                struct dcryptor_enchdr *source,
-                struct dcryptor_alg *alg)
+		struct dcryptor_enchdr *dest,
+		struct dcryptor_enchdr *source,
+		struct dcryptor_alg *alg)
 {
 	struct crypt_cipher *cipher;
-        char *key_one;
-        int r;
+	char *key_one;
+	int r;
 	char iv[16] = {};
 
-        if (posix_memalign((void*)&key_one, crypt_getpagesize(), DCRYPTOR_KEY_LEN))
-                return -ENOMEM;
+	if (posix_memalign((void*)&key_one, crypt_getpagesize(), DCRYPTOR_KEY_LEN))
+		return -ENOMEM;
 
-        memcpy(key_one, key + alg->key_offset, 32);
-        memcpy(key_one+32, key + alg->iv_offset, 32);
+	memcpy(key_one, key + alg->key_offset, 32);
+	memcpy(key_one+32, key + alg->iv_offset, 32);
 
-        r = crypt_cipher_init(&cipher, alg->name, "xts", key_one, 64);
-        if (r)
-                goto exit;
+	r = crypt_cipher_init(&cipher, alg->name, "xts", key_one, 64);
+	if (r)
+		goto exit;
 
-        // TODO: what about 4kB sectors?
-        for (int i = 0; i < DCRYPTOR_HDR_LEN / 512; i++) {
-                iv[0] = i+1;
-                r = crypt_cipher_decrypt(cipher,
-                        (const char *)source + i * 512,
-                        (char *)dest + i * 512,
-                        512,
-                        iv, 16);
+	// TODO: what about 4kB sectors?
+	for (int i = 0; i < DCRYPTOR_HDR_LEN / 512; i++) {
+		iv[0] = i+1;
+		r = crypt_cipher_decrypt(cipher,
+			(const char *)source + i * 512,
+			(char *)dest + i * 512,
+			512,
+			iv, 16);
 
-        }
-        crypt_cipher_destroy(cipher);
+	}
+	crypt_cipher_destroy(cipher);
 
 exit:
 	if (key_one)
 		crypt_safe_memzero(key_one, DCRYPTOR_KEY_LEN);
 
-        free(key_one);
-        return r;
+	free(key_one);
+	return r;
 }
 
 int DCRYPTOR_decrypt_hdr_one_combination(char *key,
-                struct dcryptor_enchdr *enchdr,
-                struct dcryptor_phdr *hdr,
-                struct dcryptor_algs *algs)
+		struct dcryptor_enchdr *enchdr,
+		struct dcryptor_phdr *hdr,
+		struct dcryptor_algs *algs)
 {
-        int i;
-        int r;
-        struct dcryptor_enchdr *temp_hdr;
+	int i;
+	int r;
+	struct dcryptor_enchdr *temp_hdr;
 
-        if (posix_memalign((void*)&temp_hdr, crypt_getpagesize(),
-                                DCRYPTOR_HDR_LEN)) {
-                return -ENOMEM;
-        }
+	if (posix_memalign((void*)&temp_hdr, crypt_getpagesize(),
+				DCRYPTOR_HDR_LEN)) {
+		return -ENOMEM;
+	}
 
-        memcpy(temp_hdr, enchdr, DCRYPTOR_HDR_LEN);
+	memcpy(temp_hdr, enchdr, DCRYPTOR_HDR_LEN);
 
-        for (i = 0; i < algs->chain_length; i++) {
-                r = DCRYPTOR_decrypt_hdr_one_cipher(key,
-                                (struct dcryptor_enchdr *) hdr,
-                                temp_hdr, &algs->cipher[i]);
-                if (r)
-                        goto exit;
+	for (i = 0; i < algs->chain_length; i++) {
+		r = DCRYPTOR_decrypt_hdr_one_cipher(key,
+				(struct dcryptor_enchdr *) hdr,
+				temp_hdr, &algs->cipher[i]);
+		if (r)
+			goto exit;
 
-                memcpy(temp_hdr, hdr, DCRYPTOR_HDR_LEN);
-        }
+		memcpy(temp_hdr, hdr, DCRYPTOR_HDR_LEN);
+	}
 
-        if (DCRYPTOR_is_correctly_decrypted(hdr))
-                r = 0;
-        else
-                r = 1;
+	if (DCRYPTOR_is_correctly_decrypted(hdr))
+		r = 0;
+	else
+		r = 1;
 
 exit:
 
 	if (temp_hdr)
 		crypt_safe_memzero(temp_hdr, DCRYPTOR_HDR_LEN);
 
-        free(temp_hdr);
-        return r;
+	free(temp_hdr);
+	return r;
 }
 
 
 // Try all combinations that have a specific chain_length, calculating pbkdf2
 // once
 int DCRYPTOR_decrypt_hdr_one_chain_length(
-                struct crypt_device *cd,
-                struct dcryptor_enchdr *enchdr,
-                struct dcryptor_phdr *hdr,
-                char *pwd_utf16,
-                int pwd_utf16_length,
-                int chain_length,
-                int *found_combination)
+		struct crypt_device *cd,
+		struct dcryptor_enchdr *enchdr,
+		struct dcryptor_phdr *hdr,
+		char *pwd_utf16,
+		int pwd_utf16_length,
+		int chain_length,
+		int *found_combination)
 {
 	char *key;
-        int r;
-        int ret = 1;
-        int i;
+	int r;
+	int ret = 1;
+	int i;
 
-        if (posix_memalign((void*)&key, crypt_getpagesize(), DCRYPTOR_KEY_LEN * chain_length))
-                return -ENOMEM;
+	if (posix_memalign((void*)&key, crypt_getpagesize(), DCRYPTOR_KEY_LEN * chain_length))
+		return -ENOMEM;
 
-        r = crypt_pbkdf("pbkdf2", "sha512",
-                        pwd_utf16, pwd_utf16_length,
-                        enchdr->salt, DCRYPTOR_SALT_LEN,
-                        key, DCRYPTOR_KEY_LEN * chain_length,
-                        1000, 0, 0);
+	r = crypt_pbkdf("pbkdf2", "sha512",
+			pwd_utf16, pwd_utf16_length,
+			enchdr->salt, DCRYPTOR_SALT_LEN,
+			key, DCRYPTOR_KEY_LEN * chain_length,
+			1000, 0, 0);
 
-        for (i = 0; dcryptor_cipher[i].chain_length; i++) {
-                if (dcryptor_cipher[i].chain_length != chain_length)
-                        continue;
+	for (i = 0; dcryptor_cipher[i].chain_length; i++) {
+		if (dcryptor_cipher[i].chain_length != chain_length)
+			continue;
 
-                r = DCRYPTOR_decrypt_hdr_one_combination(key, enchdr, hdr,
-                        &dcryptor_cipher[i]);
-                if (r == 0) {
-                        // found!
-                        ret = 0;
-                        *found_combination = i;
-                        break;
-                }
+		r = DCRYPTOR_decrypt_hdr_one_combination(key, enchdr, hdr,
+			&dcryptor_cipher[i]);
+		if (r == 0) {
+			// found!
+			ret = 0;
+			*found_combination = i;
+			break;
+		}
 
-                if (r < 0) {
-                        // error!
-                        ret = r;
-                        break;
-                }
-        }
+		if (r < 0) {
+			// error!
+			ret = r;
+			break;
+		}
+	}
 
 	if (key)
 		crypt_safe_memzero(key, DCRYPTOR_KEY_LEN * chain_length);
 
-        free(key);
-        return ret;
+	free(key);
+	return ret;
 }
 
 int DCRYPTOR_decrypt_hdr(struct crypt_device *cd,
@@ -300,55 +300,55 @@ int DCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 			   struct dcryptor_phdr *hdr,
 			   struct crypt_params_dcryptor *params)
 {
-        int r;
-        int i;
-        int found_combination;
+	int r;
+	int i;
+	int found_combination;
 
 	assert(sizeof(struct dcryptor_enchdr) == DCRYPTOR_HDR_LEN);
 	assert(sizeof(struct dcryptor_phdr) == DCRYPTOR_HDR_LEN);
 
-        char *utf16Password = NULL;
-        r = passphrase_to_utf16(cd, CONST_CAST(char *) params->passphrase, params->passphrase_size, &utf16Password);
-        // TODO: check r
+	char *utf16Password = NULL;
+	r = passphrase_to_utf16(cd, CONST_CAST(char *) params->passphrase, params->passphrase_size, &utf16Password);
+	// TODO: check r
 
-        for (i = 1 ; i <= 3; i++) {
-                r = DCRYPTOR_decrypt_hdr_one_chain_length(cd, enchdr, hdr,
-                        utf16Password, params->passphrase_size * 2,
-                        i,
-                        &found_combination);
+	for (i = 1 ; i <= 3; i++) {
+		r = DCRYPTOR_decrypt_hdr_one_chain_length(cd, enchdr, hdr,
+			utf16Password, params->passphrase_size * 2,
+			i,
+			&found_combination);
 
-                if (r <= 0)
-                        break;
-        }
-        // TODO: if (r < 0) ...
+		if (r <= 0)
+			break;
+	}
+	// TODO: if (r < 0) ...
 
-        if (r == 0) {
-                log_std(cd, "DONE\n");
-                // hexprint(cd, hdr, 2048, " ");
+	if (r == 0) {
+		log_std(cd, "DONE\n");
+		// hexprint(cd, hdr, 2048, " ");
 
-                hexdump_buffer(stderr, (const unsigned char *)hdr, 2048, 16);
-        }
+		hexdump_buffer(stderr, (const unsigned char *)hdr, 2048, 16);
+	}
 
-        // TODO: little-endian vs big-endian
+	// TODO: little-endian vs big-endian
 
-        return r;
+	return r;
 }
 
 /*
 
 int DCRYPTOR_decrypt_sector(struct crypt_device *cd,
-                struct dcryptor_phdr *hdr,
-                uint64_t sector_number)
+		struct dcryptor_phdr *hdr,
+		uint64_t sector_number)
 {
-        int r;
+	int r;
 	struct crypt_cipher *cipher;
 	char iv[16] = {};
-        char *sector = malloc(512);
-        char *sector_decrypted = malloc(512);
+	char *sector = malloc(512);
+	char *sector_decrypted = malloc(512);
 
 	struct device *device = crypt_data_device(cd);
-        int devfd;
-        devfd = device_open(cd, device, O_RDONLY);
+	int devfd;
+	devfd = device_open(cd, device, O_RDONLY);
 	if (devfd < 0) {
 		device_free(cd, device);
 		log_err(cd, _("Cannot open device %s."), device_path(device));
@@ -357,34 +357,34 @@ int DCRYPTOR_decrypt_sector(struct crypt_device *cd,
 
 	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
 			device_alignment(device), sector, DCRYPTOR_HDR_LEN, sector_number * 512)
-                        != 512) {
+			!= 512) {
 
 		device_free(cd, device);
 		log_err(cd, _("Cannot read device %s."), device_path(device));
 		return -EINVAL;
-        }
+	}
 
-        r = crypt_cipher_init(&cipher, "aes", "xts", hdr->key, 64);
+	r = crypt_cipher_init(&cipher, "aes", "xts", hdr->key, 64);
 
-        for (int i = 16300; i <= 16400; i++) {
-                iv[0] = i % 256;
-                iv[1] = i / 256;
+	for (int i = 16300; i <= 16400; i++) {
+		iv[0] = i % 256;
+		iv[1] = i / 256;
 
-                fprintf(stderr, "\n\ni=%d\n", i);
+		fprintf(stderr, "\n\ni=%d\n", i);
 
-                r = crypt_cipher_decrypt(cipher,
-                        sector,
-                        sector_decrypted,
-                        512,
-                        iv, 16);
+		r = crypt_cipher_decrypt(cipher,
+			sector,
+			sector_decrypted,
+			512,
+			iv, 16);
 
-                hexdump_buffer(stderr, sector_decrypted, 512, 16);
-        }
+		hexdump_buffer(stderr, sector_decrypted, 512, 16);
+	}
 
-        free(sector);
-        free(sector_decrypted);
+	free(sector);
+	free(sector_decrypted);
 
-        return 0;
+	return 0;
 }
 */
 
@@ -392,32 +392,32 @@ int DCRYPTOR_read_phdr(struct crypt_device *cd,
 		     struct dcryptor_phdr *hdr,
 		     struct crypt_params_dcryptor *params)
 {
-        int r = 0;
-        int devfd;
+	int r = 0;
+	int devfd;
 	struct device *device = crypt_data_device(cd);
-        struct dcryptor_enchdr *enchdr;
+	struct dcryptor_enchdr *enchdr;
 
-        devfd = device_open(cd, device, O_RDONLY);
+	devfd = device_open(cd, device, O_RDONLY);
 	if (devfd < 0) {
 		device_free(cd, device);
 		log_err(cd, _("Cannot open device %s."), device_path(device));
 		return -EINVAL;
 	}
 
-        enchdr = malloc(sizeof(struct dcryptor_enchdr));
-        // TODO: if (enchdr == NULL)
+	enchdr = malloc(sizeof(struct dcryptor_enchdr));
+	// TODO: if (enchdr == NULL)
 
 	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
 			device_alignment(device), enchdr, DCRYPTOR_HDR_LEN, 0) == DCRYPTOR_HDR_LEN) {
 		r = DCRYPTOR_decrypt_hdr(cd, enchdr, hdr, params);
 
-                //DCRYPTOR_decrypt_sector(cd, hdr, 16380);
-        }
+		//DCRYPTOR_decrypt_sector(cd, hdr, 16380);
+	}
 
 	if (r < 0)
 		memset(hdr, 0, sizeof (*hdr));
 
-        free(enchdr);
+	free(enchdr);
 	return r;
 }
 

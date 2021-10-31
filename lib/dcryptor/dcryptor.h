@@ -37,22 +37,22 @@ struct dcryptor_enchdr {
 struct dcryptor_phdr {
 	char _trash[DCRYPTOR_SALT_LEN];
 	char signature[4];
-        uint32_t crc32;
-        uint16_t header_version;
-        uint32_t flags;
-        uint32_t uuid;
+	uint32_t crc32;
+	uint16_t header_version;
+	uint32_t flags;
+	uint32_t uuid;
 
-        uint32_t alg_id;
-        char key[DCRYPTOR_MAX_KEYS][DCRYPTOR_KEY_LEN];
-        uint32_t previous_alg_id;
-        char previous_key[DCRYPTOR_MAX_KEYS][DCRYPTOR_KEY_LEN];
+	uint32_t alg_id;
+	char key[DCRYPTOR_MAX_KEYS][DCRYPTOR_KEY_LEN];
+	uint32_t previous_alg_id;
+	char previous_key[DCRYPTOR_MAX_KEYS][DCRYPTOR_KEY_LEN];
 
-        uint64_t relocation_offset;
-        uint64_t data_size;
-        uint64_t encrypted_size;
-        uint8_t wipe_mode;
+	uint64_t relocation_offset;
+	uint64_t data_size;
+	uint64_t encrypted_size;
+	uint8_t wipe_mode;
 
-        char padding[1421];
+	char padding[1421];
 } __attribute__((__packed__));
 
 

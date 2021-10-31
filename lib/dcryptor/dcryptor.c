@@ -29,7 +29,7 @@
 #include <iconv.h>
 
 #include "libcryptsetup.h"
-#include "diskcryptor.h"
+#include "dcryptor.h"
 #include "internal.h"
 
 // copied from lib/bitlk/bitlk.c

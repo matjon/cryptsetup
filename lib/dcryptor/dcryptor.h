@@ -21,13 +21,12 @@
 #ifndef _CRYPTSETUP_DCRYPTOR_H
 #define _CRYPTSETUP_DCRYPTOR_H
 
-#define DCRYPTOR_HDR_SALT_LEN 64
 #define DCRYPTOR_HDR_LEN    2048
-#define DCRYPTOR_HDR_ENC_LEN    (DCRYPTOR_HDR_LEN - DCRYPTOR_HDR_SALT_LEN)
+#define DCRYPTOR_HDR_SALT_LEN 64
 
 struct dcryptor_enchdr {
 	char salt[DCRYPTOR_HDR_SALT_LEN];
-	char encrypted[DCRYPTOR_HDR_ENC_LEN];
+	char encrypted[DCRYPTOR_HDR_LEN - DCRYPTOR_HDR_SALT_LEN];
 } __attribute__((__packed__));
 
 // TODO: It is likely that the size is bigger if multiple ciphers are used together

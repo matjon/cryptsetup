@@ -103,10 +103,10 @@ struct crypt_device {
 		struct crypt_params_tcrypt params;
 		struct tcrypt_phdr hdr;
 	} tcrypt;
-	struct { /* used in CRYPT_DISKCRYPTOR */
-		struct crypt_params_diskcryptor params;
-		struct diskcryptor_phdr hdr;
-	} diskcryptor;
+	struct { /* used in CRYPT_DCRYPTOR */
+		struct crypt_params_dcryptor params;
+		struct dcryptor_phdr hdr;
+	} dcryptor;
 	struct { /* used in CRYPT_INTEGRITY */
 		struct crypt_params_integrity params;
 		struct volume_key *journal_mac_key;
@@ -318,9 +318,9 @@ static int isTCRYPT(const char *type)
 	return (type && !strcmp(CRYPT_TCRYPT, type));
 }
 
-static int isDISKCRYPTOR(const char *type)
+static int isDCRYPTOR(const char *type)
 {
-	return (type && !strcmp(CRYPT_DISKCRYPTOR, type));
+	return (type && !strcmp(CRYPT_DCRYPTOR, type));
 }
 
 static int isINTEGRITY(const char *type)
@@ -881,7 +881,7 @@ static int _crypt_load_tcrypt(struct crypt_device *cd, struct crypt_params_tcryp
 	return r;
 }
 
-static int _crypt_load_diskcryptor(struct crypt_device *cd, struct crypt_params_diskcryptor *params)
+static int _crypt_load_dcryptor(struct crypt_device *cd, struct crypt_params_dcryptor *params)
 {
 	int r;
 
@@ -892,20 +892,20 @@ static int _crypt_load_diskcryptor(struct crypt_device *cd, struct crypt_params_
 	if (r < 0)
 		return r;
 
-	memcpy(&cd->u.diskcryptor.params, params, sizeof(*params));
+	memcpy(&cd->u.dcryptor.params, params, sizeof(*params));
 
-	r = DISKCRYPTOR_read_phdr(cd, &cd->u.diskcryptor.hdr, &cd->u.diskcryptor.params);
+	r = DCRYPTOR_read_phdr(cd, &cd->u.dcryptor.hdr, &cd->u.dcryptor.params);
 
-	cd->u.diskcryptor.params.passphrase = NULL;
-	cd->u.diskcryptor.params.passphrase_size = 0;
-	//cd->u.diskcryptor.params.keyfiles = NULL;
-	//cd->u.diskcryptor.params.keyfiles_count = 0;
+	cd->u.dcryptor.params.passphrase = NULL;
+	cd->u.dcryptor.params.passphrase_size = 0;
+	//cd->u.dcryptor.params.keyfiles = NULL;
+	//cd->u.dcryptor.params.keyfiles_count = 0;
 
 	if (r < 0)
 		return r;
 
         // ???
-	if (!cd->type && !(cd->type = strdup(CRYPT_DISKCRYPTOR)))
+	if (!cd->type && !(cd->type = strdup(CRYPT_DCRYPTOR)))
 		return -ENOMEM;
 
 	return r;
@@ -1079,12 +1079,12 @@ int crypt_load(struct crypt_device *cd,
 			return -EINVAL;
 		}
 		r = _crypt_load_tcrypt(cd, params);
-	} else if (isDISKCRYPTOR(requested_type)) {
-		if (cd->type && !isDISKCRYPTOR(cd->type)) {
+	} else if (isDCRYPTOR(requested_type)) {
+		if (cd->type && !isDCRYPTOR(cd->type)) {
 			log_dbg(cd, "Context is already initialized to type %s", cd->type);
 			return -EINVAL;
 		}
-		r = _crypt_load_diskcryptor(cd, params);
+		r = _crypt_load_dcryptor(cd, params);
 	} else if (isINTEGRITY(requested_type)) {
 		if (cd->type && !isINTEGRITY(cd->type)) {
 			log_dbg(cd, "Context is already initialized to type %s", cd->type);
@@ -2888,7 +2888,7 @@ int crypt_resize(struct crypt_device *cd, const char *name, uint64_t new_size)
 	if (!cd || !cd->type || !name)
 		return -EINVAL;
 
-	if (isDISKCRYPTOR(cd->type) || isTCRYPT(cd->type) || isBITLK(cd->type)) {
+	if (isDCRYPTOR(cd->type) || isTCRYPT(cd->type) || isBITLK(cd->type)) {
 		log_err(cd, _("This operation is not supported for this device type."));
 		return -ENOTSUP;
 	}
@@ -4529,7 +4529,7 @@ int crypt_activate_by_volume_key(struct crypt_device *cd,
 		r = TCRYPT_activate(cd, name, &cd->u.tcrypt.hdr,
 				    &cd->u.tcrypt.params, flags);
 
-	} else if (isDISKCRYPTOR(cd->type)) {
+	} else if (isDCRYPTOR(cd->type)) {
                 // TODO
 
 
@@ -4833,7 +4833,7 @@ int crypt_volume_key_get(struct crypt_device *cd,
 				passphrase, passphrase_size, &vk);
 	} else if (isTCRYPT(cd->type)) {
 		r = TCRYPT_get_volume_key(cd, &cd->u.tcrypt.hdr, &cd->u.tcrypt.params, &vk);
-	} else if (isDISKCRYPTOR(cd->type)) {
+	} else if (isDCRYPTOR(cd->type)) {
                 // TODO
 	} else if (isVERITY(cd->type)) {
 		/* volume_key == root hash */
@@ -5113,7 +5113,7 @@ const char *crypt_get_cipher(struct crypt_device *cd)
 	if (isTCRYPT(cd->type))
 		return cd->u.tcrypt.params.cipher;
 
-	if (isDISKCRYPTOR(cd->type))
+	if (isDCRYPTOR(cd->type))
                 // TODO
                 return NULL;
 
@@ -5150,7 +5150,7 @@ const char *crypt_get_cipher_mode(struct crypt_device *cd)
 	if (isTCRYPT(cd->type))
 		return cd->u.tcrypt.params.mode;
 
-	if (isDISKCRYPTOR(cd->type))
+	if (isDCRYPTOR(cd->type))
                 // TODO
                 return "xts-plain64";
 
@@ -5297,7 +5297,7 @@ int crypt_get_volume_key_size(struct crypt_device *cd)
 	if (isTCRYPT(cd->type))
 		return cd->u.tcrypt.params.key_size;
 
-	if (isDISKCRYPTOR(cd->type))
+	if (isDCRYPTOR(cd->type))
                 // TODO
                 return 512;
 
@@ -5727,8 +5727,8 @@ void *crypt_get_hdr(struct crypt_device *cd, const char *type)
 	if (isTCRYPT(cd->type))
 		return &cd->u.tcrypt;
 
-	if (isDISKCRYPTOR(cd->type))
-		return &cd->u.diskcryptor;
+	if (isDCRYPTOR(cd->type))
+		return &cd->u.dcryptor;
 
 	return NULL;
 }

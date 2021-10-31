@@ -424,7 +424,7 @@ int crypt_get_metadata_size(struct crypt_device *cd,
 /** TCRYPT (TrueCrypt-compatible and VeraCrypt-compatible) mode */
 #define CRYPT_TCRYPT "TCRYPT"
 /** DiskCryptor */
-#define CRYPT_DISKCRYPTOR "DISKCRYPTOR"
+#define CRYPT_DCRYPTOR "DCRYPTOR"
 /** INTEGRITY dm-integrity device */
 #define CRYPT_INTEGRITY "INTEGRITY"
 /** BITLK (BitLocker-compatible mode) */
@@ -564,7 +564,7 @@ struct crypt_params_tcrypt {
  * @see crypt_load
  *
  */
-struct crypt_params_diskcryptor {
+struct crypt_params_dcryptor {
 	const char *passphrase;    /**< passphrase to unlock header (input only) */
 	size_t passphrase_size;    /**< passphrase size (input only) */
 	const char **keyfiles;     /**< NOT IMPLEMENTED YET */

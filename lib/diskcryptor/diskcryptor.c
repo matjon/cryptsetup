@@ -68,6 +68,31 @@ static int passphrase_to_utf16(struct crypt_device *cd, char *input, size_t inle
 	return r;
 }
 
+
+// Based on tcrypt.c
+struct dcryptor_alg {
+		const char *name;
+		unsigned int key_offset;
+		unsigned int iv_offset;
+};
+
+struct dcryptor_algs {
+	unsigned int chain_count;
+        uint32_t alg_id;
+	const char *long_name;
+	struct tcrypt_alg cipher[3];
+};
+
+static struct dcryptor_algs dcryptor_cipher[] = {
+        { 1, 0x0, "aes",
+                {"aes", 0, 32}},
+        { 1, 0x1, "aes",
+                {"aes", 0, 32}}
+
+
+
+};
+
 static void hexdump_buffer(FILE *stream, const unsigned char *buffer,
                 size_t buffer_size, const int bytes_per_line)
 {
@@ -136,7 +161,7 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 			   struct diskcryptor_phdr *hdr,
 			   struct crypt_params_diskcryptor *params)
 {
-	char *key;
+	char *key, *key_aes, *key_twofish;
         int r;
 	struct crypt_cipher *cipher;
 	char iv[16] = {};
@@ -145,6 +170,10 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 	assert(sizeof(struct diskcryptor_phdr) == DISKCRYPTOR_HDR_WHOLE_LEN);
 
         if (posix_memalign((void*)&key, crypt_getpagesize(), DISKCRYPTOR_HDR_MAX_KEY_LEN))
+                return -ENOMEM;
+        if (posix_memalign((void*)&key_twofish, crypt_getpagesize(), DISKCRYPTOR_HDR_MAX_KEY_LEN))
+                return -ENOMEM;
+        if (posix_memalign((void*)&key_aes, crypt_getpagesize(), DISKCRYPTOR_HDR_MAX_KEY_LEN))
                 return -ENOMEM;
 
         char *utf16Password = NULL;
@@ -156,8 +185,14 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
                         key, DISKCRYPTOR_HDR_KEY_LEN * 2,
                         1000, 0, 0);
 
+        memcpy(key_aes, key+32, 32);
+        memcpy(key_aes+32, key+32*3, 32);
+
+        memcpy(key_twofish, key, 32);
+        memcpy(key_twofish+32, key+32*2, 32);
+
         // TODO: czy na pewno xts-plain64, czy też raczej xts-plain
-        r = crypt_cipher_init(&cipher, "twofish", "xts", key+64, 64);
+        r = crypt_cipher_init(&cipher, "aes", "xts", key_aes, 64);
         if (!r) {
                 // TODO: co w wypadku sektorów 4k / większych niż 512 bajtów?
                 for (int i = 0; i < DISKCRYPTOR_HDR_WHOLE_LEN / 512; i++) {
@@ -176,7 +211,7 @@ int DISKCRYPTOR_decrypt_hdr(struct crypt_device *cd,
         memcpy(enchdr, hdr, DISKCRYPTOR_HDR_WHOLE_LEN);
 
         // TODO: czy na pewno xts-plain64, czy też raczej xts-plain
-        r = crypt_cipher_init(&cipher, "aes", "xts", key, 64);
+        r = crypt_cipher_init(&cipher, "twofish", "xts", key_twofish, 64);
         if (!r) {
                 // TODO: co w wypadku sektorów 4k / większych niż 512 bajtów?
                 for (int i = 0; i < DISKCRYPTOR_HDR_WHOLE_LEN / 512; i++) {

@@ -462,12 +462,11 @@ int DCRYPTOR_activate(struct crypt_device *cd,
 
 	memcpy(vk->key, hdr->key[0], DCRYPTOR_KEY_LEN);
 
+
+	r= dm_targets_allocate(&dmd.segment, 2);
+
 // TODO: should I use xts-plain64, or perhaps xts-plain?
 //
-	// int dm_crypt_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
-	//	struct device *data_device, struct volume_key *vk, const char *cipher,
-	//	uint64_t iv_offset, uint64_t data_offset, const char *integrity,
-	//	uint32_t tag_size, uint32_t sector_size);
 	r = dm_crypt_target_set(
 			&dmd.segment,
 			0, // offset of the segment
@@ -481,6 +480,18 @@ int DCRYPTOR_activate(struct crypt_device *cd,
 			crypt_get_integrity_tag_size(cd),
 			crypt_get_sector_size(cd));
 
+	r = dm_crypt_target_set(
+			dmd.segment.next,
+			4, // offset of the segment
+			16376, // segment size
+			ptr_dev,	// source device (?)
+			vk,		// key
+			"aes-xts-plain64", // cipher
+			5,	// IV offset
+			4,	// data offset
+			crypt_get_integrity(cd),
+			crypt_get_integrity_tag_size(cd),
+			crypt_get_sector_size(cd));
 
 	r = dm_create_device(cd, dm_name, CRYPT_DCRYPTOR, &dmd);
 

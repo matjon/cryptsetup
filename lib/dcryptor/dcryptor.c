@@ -421,4 +421,70 @@ int DCRYPTOR_read_phdr(struct crypt_device *cd,
 	return r;
 }
 
-// TODO: should I use xts-plain64, or possibly xts-plain?
+int DCRYPTOR_activate(struct crypt_device *cd,
+		     const char *name,
+		     struct dcryptor_phdr *hdr,
+		     struct crypt_params_dcryptor *params,
+		     uint32_t flags)
+{
+	int r;
+	struct device *ptr_dev = crypt_data_device(cd), *device = NULL, *part_device = NULL;
+	enum devcheck device_check;
+
+	char dm_name[PATH_MAX], dm_dev_name[PATH_MAX], cipher_spec[MAX_CIPHER_LEN*2+1];
+
+	struct crypt_dm_active_device dmd = {
+		.flags = flags
+	};
+
+	uint64_t device_size;
+	struct volume_key *vk = NULL;
+
+	// TODO: check if hdr is really decrypted
+	// TODO: check sector size as in tcrypt.c
+	//
+	// TODO: check kernel support for xts-plain64 (DM_PLAIN64_SUPPORTED)
+	// TODO: check (dmd.flags & CRYPT_ACTIVATE_SHARED) - as in tcrypt.c
+
+	// TODO: check device length
+	// TODO: do not always use DEV_EXCL
+	r = device_block_adjust(cd, ptr_dev, DEV_EXCL,
+				0, &device_size, &dmd.flags);
+	// TODO: check r
+
+	vk = crypt_alloc_volume_key(DCRYPTOR_KEY_LEN, NULL);
+
+	dm_name[sizeof(dm_name)-1] = '\0';
+	strncpy(dm_name, name, sizeof(dm_name)-1);
+	dmd.flags = flags;
+
+	memcpy(vk, hdr->key[0], DCRYPTOR_KEY_LEN);
+
+// TODO: should I use xts-plain64, or perhaps xts-plain?
+//
+	// int dm_crypt_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
+	//	struct device *data_device, struct volume_key *vk, const char *cipher,
+	//	uint64_t iv_offset, uint64_t data_offset, const char *integrity,
+	//	uint32_t tag_size, uint32_t sector_size);
+	r = dm_crypt_target_set(
+			&dmd.segment,
+			0, // offset of the segment
+			4, // segment size
+			ptr_dev,	// source device (?)
+			vk,		// key
+			"aes-xts-plain64", // cipher
+			16381,	// IV offset
+			16380,	// data offset
+			crypt_get_integrity(cd),
+			crypt_get_integrity_tag_size(cd),
+			crypt_get_sector_size(cd));
+
+
+	r = dm_create_device(cd, dm_name, CRYPT_DCRYPTOR, &dmd);
+
+	// TODO: tidy things up
+
+
+	return r;
+
+}

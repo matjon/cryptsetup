@@ -63,4 +63,10 @@ int DCRYPTOR_read_phdr(struct crypt_device *cd,
 		     struct dcryptor_phdr *hdr,
 		     struct crypt_params_dcryptor *params);
 
+int DCRYPTOR_activate(struct crypt_device *cd,
+		     const char *name,
+		     struct dcryptor_phdr *hdr,
+		     struct crypt_params_dcryptor *params,
+		     uint32_t flags);
+
 #endif

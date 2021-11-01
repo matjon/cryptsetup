@@ -4530,8 +4530,11 @@ int crypt_activate_by_volume_key(struct crypt_device *cd,
 				    &cd->u.tcrypt.params, flags);
 
 	} else if (isDCRYPTOR(cd->type)) {
-                // TODO
-
+                // TODO check this
+		if (!name)
+			return 0;
+		r = DCRYPTOR_activate(cd, name, &cd->u.dcryptor.hdr,
+				    &cd->u.dcryptor.params, flags);
 
 	} else if (isINTEGRITY(cd->type)) {
 		if (!name)

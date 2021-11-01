@@ -404,7 +404,6 @@ int DCRYPTOR_activate(struct crypt_device *cd,
 
 	dm_name[sizeof(dm_name)-1] = '\0';
 	strncpy(dm_name, name, sizeof(dm_name)-1);
-	dmd.flags = flags;
 
 	memcpy(vk->key, hdr->key[0], DCRYPTOR_KEY_LEN);
 

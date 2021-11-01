@@ -412,6 +412,8 @@ int DCRYPTOR_read_phdr(struct crypt_device *cd,
 		r = DCRYPTOR_decrypt_hdr(cd, enchdr, hdr, params);
 
 		//DCRYPTOR_decrypt_sector(cd, hdr, 16380);
+	} else {
+		log_err(cd, _("Cannot read from device %s."), device_path(device));
 	}
 
 	if (r < 0)
@@ -437,7 +439,7 @@ int DCRYPTOR_activate(struct crypt_device *cd,
 		.flags = flags
 	};
 
-	uint64_t device_size;
+	uint64_t device_size = 0;
 	struct volume_key *vk = NULL;
 
 	// TODO: check if hdr is really decrypted
@@ -458,7 +460,7 @@ int DCRYPTOR_activate(struct crypt_device *cd,
 	strncpy(dm_name, name, sizeof(dm_name)-1);
 	dmd.flags = flags;
 
-	memcpy(vk, hdr->key[0], DCRYPTOR_KEY_LEN);
+	memcpy(vk->key, hdr->key[0], DCRYPTOR_KEY_LEN);
 
 // TODO: should I use xts-plain64, or perhaps xts-plain?
 //

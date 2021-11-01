@@ -570,7 +570,6 @@ struct crypt_params_dcryptor {
 	const char **keyfiles;     /**< NOT IMPLEMENTED YET */
 	unsigned int keyfiles_count;/**< NOT IMPLEMENTED YET */
 	const char *cipher;        /**< cipher chain c1[-c2[-c3]] */
-	size_t key_size;           /**< key size in bytes (the whole chain) */
 	uint32_t flags;            /**< CRYPT_DISKCRYPTOR* flags */
 };
 

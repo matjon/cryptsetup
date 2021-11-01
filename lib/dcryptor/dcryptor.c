@@ -329,6 +329,8 @@ int DCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 		hexdump_buffer(stderr, (const unsigned char *)hdr, 2048, 16);
 	}
 
+	//if (dcryptor_cipher[found_combination].alg_id != hdr
+
 	// TODO: little-endian vs big-endian
 
 	return r;
@@ -351,13 +353,12 @@ int DCRYPTOR_read_phdr(struct crypt_device *cd,
 	}
 
 	enchdr = malloc(sizeof(struct dcryptor_enchdr));
-	// TODO: if (enchdr == NULL)
+	if (enchdr == NULL)
+		return -ENOMEM;
 
 	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
 			device_alignment(device), enchdr, DCRYPTOR_HDR_LEN, 0) == DCRYPTOR_HDR_LEN) {
 		r = DCRYPTOR_decrypt_hdr(cd, enchdr, hdr, params);
-
-		//DCRYPTOR_decrypt_sector(cd, hdr, 16380);
 	} else {
 		log_err(cd, _("Cannot read from device %s."), device_path(device));
 	}
@@ -391,7 +392,6 @@ int DCRYPTOR_activate(struct crypt_device *cd,
 	// TODO: check if hdr is really decrypted
 	// TODO: check sector size as in tcrypt.c
 	//
-	// TODO: check kernel support for xts-plain64 (DM_PLAIN64_SUPPORTED)
 	// TODO: check (dmd.flags & CRYPT_ACTIVATE_SHARED) - as in tcrypt.c
 
 	// TODO: check device length
@@ -408,7 +408,7 @@ int DCRYPTOR_activate(struct crypt_device *cd,
 	memcpy(vk->key, hdr->key[0], DCRYPTOR_KEY_LEN);
 
 
-	r= dm_targets_allocate(&dmd.segment, 2);
+	r = dm_targets_allocate(&dmd.segment, 2);
 
 // TODO: should I use xts-plain64, or perhaps xts-plain?
 //
@@ -442,6 +442,8 @@ int DCRYPTOR_activate(struct crypt_device *cd,
 
 	// TODO: tidy things up
 
+
+	// TODO: check kernel support for xts-plain64 (DM_PLAIN64_SUPPORTED)
 
 	return r;
 

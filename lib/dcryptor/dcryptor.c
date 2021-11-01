@@ -334,60 +334,6 @@ int DCRYPTOR_decrypt_hdr(struct crypt_device *cd,
 	return r;
 }
 
-/*
-
-int DCRYPTOR_decrypt_sector(struct crypt_device *cd,
-		struct dcryptor_phdr *hdr,
-		uint64_t sector_number)
-{
-	int r;
-	struct crypt_cipher *cipher;
-	char iv[16] = {};
-	char *sector = malloc(512);
-	char *sector_decrypted = malloc(512);
-
-	struct device *device = crypt_data_device(cd);
-	int devfd;
-	devfd = device_open(cd, device, O_RDONLY);
-	if (devfd < 0) {
-		device_free(cd, device);
-		log_err(cd, _("Cannot open device %s."), device_path(device));
-		return -EINVAL;
-	}
-
-	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
-			device_alignment(device), sector, DCRYPTOR_HDR_LEN, sector_number * 512)
-			!= 512) {
-
-		device_free(cd, device);
-		log_err(cd, _("Cannot read device %s."), device_path(device));
-		return -EINVAL;
-	}
-
-	r = crypt_cipher_init(&cipher, "aes", "xts", hdr->key, 64);
-
-	for (int i = 16300; i <= 16400; i++) {
-		iv[0] = i % 256;
-		iv[1] = i / 256;
-
-		fprintf(stderr, "\n\ni=%d\n", i);
-
-		r = crypt_cipher_decrypt(cipher,
-			sector,
-			sector_decrypted,
-			512,
-			iv, 16);
-
-		hexdump_buffer(stderr, sector_decrypted, 512, 16);
-	}
-
-	free(sector);
-	free(sector_decrypted);
-
-	return 0;
-}
-*/
-
 int DCRYPTOR_read_phdr(struct crypt_device *cd,
 		     struct dcryptor_phdr *hdr,
 		     struct crypt_params_dcryptor *params)
